@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Navigate,Link } from 'react-router-dom';
 import { Truck, Loader2, Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Activity, MapPin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -30,6 +30,47 @@ export default function LoginPage() {
   const [errors, setErrors] = useState({ email: '', password: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [serverReady, setServerReady] = useState(false);
+  const [serverChecking, setServerChecking] = useState(true);
+
+useEffect(() => {
+  let cancelled = false;
+  let timer;
+
+  const healthUrl =
+    `${import.meta.env.VITE_API_URL || ''}/api/health`;
+
+  const checkServer = async () => {
+    try {
+      const response = await fetch(healthUrl, {
+        method: 'GET',
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        throw new Error('Server is starting');
+      }
+
+      if (!cancelled) {
+        setServerReady(true);
+        setServerChecking(false);
+      }
+    } catch {
+      if (!cancelled) {
+        setServerReady(false);
+        setServerChecking(true);
+        timer = setTimeout(checkServer, 5000);
+      }
+    }
+  };
+
+  checkServer();
+
+  return () => {
+    cancelled = true;
+    clearTimeout(timer);
+  };
+}, []);
 
   if (!authLoading && isAuthed) {
     return <Navigate to={from} replace />;
@@ -180,6 +221,15 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
+            {serverChecking ? (
+  <p role="status" className="text-xs text-amber-600">
+    Waking up the server... Please wait.
+  </p>
+) : (
+  <p role="status" className="text-xs text-emerald-600">
+    Server is ready.
+  </p>
+)}
 
             <button
               type="submit"
